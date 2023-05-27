@@ -15,10 +15,10 @@ def get_channel_details(y_tube, channel_id):
              'relatedPlaylists(uploads)), statistics(videoCount, viewCount, subscriberCount))'
 
     response = y_tube.channels().list(
-                part='snippet, contentDetails, statistics',
-                id=channel_id,
-                fields=fields
-                ).execute()
+        part='snippet, contentDetails, statistics',
+        id=channel_id,
+        fields=fields
+    ).execute()
     chnl = response['items'][0]
     channel_details = {
         'Channel_Name': chnl['snippet']['title'],
@@ -40,12 +40,12 @@ def get_all_playlist_ids(y_tube, channel_id):
 
     while True:
         response = y_tube.playlists().list(
-                    part='snippet',
-                    fields='items(id, snippet(title))',
-                    channelId=channel_id,
-                    maxResults=50,
-                    pageToken=next_page_token
-                    ).execute()
+            part='snippet',
+            fields='items(id, snippet(title))',
+            channelId=channel_id,
+            maxResults=50,
+            pageToken=next_page_token
+        ).execute()
         i = 1
         for item in response['items']:
             playlist = {'playlist_id': item['id'], 'playlist_name': item['snippet']['title'],
@@ -67,12 +67,11 @@ def get_all_video_ids(y_tube, playlist_id):
 
     while True:
         response = y_tube.playlistItems().list(
-                    part='snippet',
-                    playlistId=playlist_id,
-                    fields='items(snippet(resourceId(videoId)))',
-                    maxResults=50,
-                    pageToken=next_page_token
-                    ).execute()
+            part='snippet',
+            playlistId=playlist_id,
+            maxResults=50,
+            pageToken=next_page_token
+        ).execute()
 
         for item in response['items']:
             video_id = item['snippet']['resourceId']['videoId']
@@ -87,33 +86,26 @@ def get_all_video_ids(y_tube, playlist_id):
 
 
 # Get video details
-def get_video_details(y_tube, video_ids, playlists, u_plist_id):
-    playlist_id = u_plist_id
-    playlist_name = 'Uploads'
+def get_video_details(y_tube, video_ids):
+    v_ids = video_ids
     all_videos = []
     fields = 'items(snippet(title, description,publishedAt, thumbnails(default(url))), contentDetails(caption, ' \
              'duration), statistics(viewCount, likeCount, dislikeCount, favoriteCount, commentCount))'
-    for video_id in video_ids:
-        for i in range(1, len(playlists) + 1):
-            if video_id in playlists['playlist_' + str(i)]['video_ids']:
-                playlist_id = playlists['playlist_' + str(i)]['playlist_id']
-                playlist_name = playlists['playlist_' + str(i)]['playlist_name']
-                break
-
+    for v_id in v_ids:
         response = y_tube.videos().list(
-                    part='snippet,contentDetails,statistics',
-                    id=video_id,
-                    fields=fields
-                    ).execute()
+            part='snippet,contentDetails,statistics',
+            id=v_id['vid_id'],
+            fields=fields
+        ).execute()
 
         video = response['items'][0]
         duration = isodate.parse_duration(video['contentDetails']['duration'])
         duration = duration.__str__()
         video_details = {
-            'Video_ID': video_id,
-            'Playlist_ID': playlist_id,
+            'Video_ID': v_id['vid_id'],
+            'Playlist_ID': v_id['pl_id'],  # playlist_id,
             'Video_Title': video['snippet']['title'],
-            'Playlist_Name': playlist_name,
+            'Playlist_Name': v_id['pl_title'],  # playlist_name,
             'Description': video['snippet']['description'],
             'Published_At': video['snippet']['publishedAt'],
             'Duration': duration,  # video_duration,
@@ -124,7 +116,7 @@ def get_video_details(y_tube, video_ids, playlists, u_plist_id):
             'Dislike_Count': int(video['statistics'].get('dislikeCount', 0)),  # int(dislike_count),
             'Favorite_Count': int(video['statistics'].get('favoriteCount', 0)),  # int(favorite_count),
             'Comment_Count': int(video['statistics'].get('commentCount', 0)),  # int(comment_count),
-            'Comments': get_comments(y_tube, video_id)
+            'Comments': get_comments(y_tube, v_id['vid_id'])
         }
         all_videos.append(video_details)
     return all_videos
@@ -139,12 +131,12 @@ def get_comments(y_tube, video_id):
     try:
         while True:
             response = y_tube.commentThreads().list(
-                        part='snippet',
-                        textFormat='plainText',
-                        maxResults=100,
-                        pageToken=next_page_token,
-                        videoId=video_id,
-                        fields=fields).execute()
+                part='snippet',
+                textFormat='plainText',
+                maxResults=100,
+                pageToken=next_page_token,
+                videoId=video_id,
+                fields=fields).execute()
 
             for item in response['items']:
                 comment_id = item['id']
@@ -170,15 +162,6 @@ def get_comments(y_tube, video_id):
             return comments
 
 
-# def get_all_video_details(y_tube, video_ids, playlists, uploads_playlist_id):
-#     video_details_list = []
-#     for video_id in video_ids:
-#         video_details = get_video_details(y_tube, video_id, playlists, uploads_playlist_id)
-#         video_details_list.append(video_details)
-#
-#     return video_details_list
-
-
 def get_channel_data(channel_ids):
     channl_ids = channel_ids.split(', ')
     channels = []
@@ -188,7 +171,20 @@ def get_channel_data(channel_ids):
         playlists = get_all_playlist_ids(youtube, channel_id)
         uploads_playlist_id = channel_details['Playlist_ID']
         video_ids = get_all_video_ids(youtube, uploads_playlist_id)
-        video_details_list = get_video_details(youtube, video_ids, playlists, uploads_playlist_id)
+        vp_ids = []
+        for video_id in video_ids:
+            vp_details = {'vid_id': video_id,
+                          'pl_id': uploads_playlist_id,
+                          'pl_title': 'Uploads'}
+            for i in range(1, len(playlists) + 1):
+                if video_id in playlists['playlist_' + str(i)]['video_ids']:
+                    vp_details = {'vid_id': video_id,
+                                  'pl_id': playlists['playlist_' + str(i)]['playlist_id'],
+                                  'pl_title': playlists['playlist_' + str(i)]['playlist_name']}
+                    break
+            vp_ids.append(vp_details)
+
+        video_details_list = get_video_details(youtube, vp_ids)  # , playlists
         channel_data["Channel"] = channel_details
         for video_details in video_details_list:
             channel_data[f'Video_{len(channel_data)}'] = video_details
@@ -263,7 +259,7 @@ def migrate_to_sql(selected_chnls):
         cmt_df = pd.DataFrame(cmts)
 
     # Migrating data from dataframe to SQL
-    engine = sqlalchemy.create_engine('mysql+pymysql://root:12345@localhost:3306/ytdata')
+    engine = sqlalchemy.create_engine('<mysql url>')
     try:
         # Migrating channel details into channel table
         ch_df.to_sql('ychannel', engine, if_exists='append', index=False)
