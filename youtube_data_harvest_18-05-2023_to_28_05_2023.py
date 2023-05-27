@@ -467,7 +467,7 @@ def main():
                 if migrate_to_sql(selected_channels):
                     st.write('Data migrated to SQL Database')
                 else:
-                    st.write('Duplicate entry clear the SQL database and try again')
+                    st.write('Data already in SQL Database')
         # Performing SQL queries over the migrated data
         cursor.execute('select * from ychannel')
         if cursor.fetchall():
