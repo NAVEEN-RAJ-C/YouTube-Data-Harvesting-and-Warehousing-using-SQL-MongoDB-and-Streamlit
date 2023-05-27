@@ -373,20 +373,21 @@ def data_query(chosen_query):
 
 
 # CONNECTION SEGMENT
-api_key = "AIzaSyD2sdx7UiByRP2CdI4QiI1nIGeY8r8C5Rg"
+# YouTube API connection
+api_key = "<youtube api key>"
 youtube = build("youtube", "v3", developerKey=api_key)
-
-mongo_connection = "mongodb+srv://naveenraj:12345@dsprojects.bmtisax.mongodb.net/?retryWrites=true&w=majority"
+# mongodb
+mongo_connection = "<mongodb connection url>"
 database_name = "Youtube_data_harvesting"
 collection_name = "channels"
 
 client = MongoClient(mongo_connection)
 mydb = client[database_name]
 mycol = mydb[collection_name]
-
+# SQL
 ytdb = mysql.connector.connect(host='localhost',
                                user='root',
-                               password='12345',
+                               password='<password>',
                                database='ytdata')
 cursor = ytdb.cursor()
 
